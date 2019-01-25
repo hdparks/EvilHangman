@@ -4,8 +4,7 @@ import java.io.File;
 import java.util.Set;
 
 public interface IEvilHangmanGame {
-	
-	@SuppressWarnings("serial")
+
 	public static class GuessAlreadyMadeException extends Exception {
 	}
 	
