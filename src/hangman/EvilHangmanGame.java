@@ -5,13 +5,19 @@ import java.io.FileNotFoundException;
 import java.util.HashSet;
 import java.util.Scanner;
 import java.util.Set;
+import java.util.TreeSet;
 
 public class EvilHangmanGame implements IEvilHangmanGame {
 
-    public Set<String> wordPool;
+    public Set<String> wordPool = new TreeSet<>();
+
+    public Set<String> guesses = new TreeSet<>();
+
+    public int turnsLeft = 0;
+
+    public String currentPattern = "";
 
     public EvilHangmanGame() {
-        wordPool = new HashSet<String>();
     }
 
     public static void printUsage(){
@@ -21,6 +27,22 @@ public class EvilHangmanGame implements IEvilHangmanGame {
         System.out.println("wordLength: (int) >= 2");
         System.out.println("guesses: (int) >= 1");
     }
+
+    public String printGuessed(){
+        String g = "";
+        for (String i : guesses){
+            g += i + " ";
+        }
+        return g;
+    }
+
+    public void printPrompt(){
+        System.out.println("You have "+turnsLeft+" guesses left");
+        System.out.println("Used letters: "+this.printGuessed());
+        System.out.println("Word: "+this.currentPattern);
+        System.out.print("Enter guess: ");
+    }
+
 
     @Override
     public void startGame(File dictionary, int wordLength) {
@@ -33,7 +55,7 @@ public class EvilHangmanGame implements IEvilHangmanGame {
             scin.useDelimiter("[^A-Za-z]+");
 
             while(scin.hasNext()){
-                String nextWord = scin.next();
+                String nextWord = scin.next().toLowerCase();
                 if (nextWord.length() == wordLength){
                     wordPool.add(nextWord);
                 }
@@ -46,8 +68,10 @@ public class EvilHangmanGame implements IEvilHangmanGame {
 
     }
 
+
     @Override
     public Set<String> makeGuess(char guess) throws GuessAlreadyMadeException {
+        if (guesses.contains(guess)) throw new GuessAlreadyMadeException();
         return null;
     }
 }
