@@ -7,7 +7,7 @@ public class EvilHangmanGame implements IEvilHangmanGame {
 
     @Override
     public void startGame(File dictionary, int wordLength) {
-        
+
     }
 
     @Override
