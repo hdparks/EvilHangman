@@ -74,4 +74,58 @@ public class EvilHangmanGame implements IEvilHangmanGame {
         if (guesses.contains(guess)) throw new GuessAlreadyMadeException();
         return null;
     }
+
+    public static class InvalidCommandLineArgument extends Exception{
+        public InvalidCommandLineArgument(String s){
+            super(s);
+        }
+    }
+
+    public static class EmptyDictionaryException extends Exception {
+        public EmptyDictionaryException(String s){
+            super(s);
+        }
+    }
+
+    public static void main(String[] args){
+        //  Ensure we have valid dictionary, length, guesses.
+        File dictionary;
+        IEvilHangmanGame game = new EvilHangmanGame();
+
+        try{
+            //  Need all three arguments
+            if(args.length != 3) throw new InvalidCommandLineArgument("Invalid command line arguments.");
+
+            //  Word length: int >= 2
+            if(Integer.parseInt(args[1]) < 2) throw new InvalidCommandLineArgument("Word length must be an int >= 2");
+
+            //  Number of guesses: int >= 1
+            if(Integer.parseInt(args[2]) < 1) throw new InvalidCommandLineArgument("Word length must be an int >= 1");
+
+            //  Dictionary not empty
+            dictionary = new File(args[0]);
+
+            if(dictionary.length() == 0) throw new EmptyDictionaryException("The provided dictionary file is empty.");
+
+
+        } catch(NumberFormatException ex){
+            System.out.println(ex.getMessage());
+            System.out.println("'wordLength' and 'guesses' must be integers");
+            EvilHangmanGame.printUsage();
+            return;
+
+        } catch( InvalidCommandLineArgument | EmptyDictionaryException ex){
+            System.out.println(ex.getMessage());
+            EvilHangmanGame.printUsage();
+            return;
+        }
+
+        //  If we have everything we need, we start the game:
+
+        game.startGame(dictionary,Integer.parseInt(args[1]));
+
+        IEvilHangmanGame game = new EvilHangmanGame();
+
+        game.startGame(args[0],args[1]);
+    }
 }
