@@ -2,10 +2,7 @@ package hangman;
 
 import java.io.File;
 import java.io.FileNotFoundException;
-import java.util.HashSet;
-import java.util.Scanner;
-import java.util.Set;
-import java.util.TreeSet;
+import java.util.*;
 
 public class EvilHangmanGame implements IEvilHangmanGame {
 
@@ -15,10 +12,28 @@ public class EvilHangmanGame implements IEvilHangmanGame {
 
     public int turnsLeft = 0;
 
-    public String currentPattern = "";
+    public static Comparator<String> evilPatternComparator =  new Comparator<String>() {
 
-    public EvilHangmanGame() {
-    }
+        @Override
+        public int compare(String o1, String o2) {
+            //  Fewest letters wins
+            int o1Score = o1.replace("-","").length();
+            int o2Score = o2.replace("-","").length();
+
+            if(o1Score - o2Score != 0) return o1Score - o2Score;
+
+            //  If: same number of letters
+            //  Then: rightmost guessed letter wins
+            for(int i = o1.length(); i > 0; i--){
+                if(o1.charAt(i)==o2.charAt(i)) continue;
+                if(o1.charAt(i)=='-') return 1;
+                else return -1;
+            }
+            //  If identical, they compare equally
+            return 0;
+        }
+    });
+
 
     public static void printUsage(){
         System.out.println("Usage: java EvilHangmanGame dictionary wordLength guesses");
@@ -49,7 +64,6 @@ public class EvilHangmanGame implements IEvilHangmanGame {
 
         //  Read in dictionary file of words of length wordLength to Set<String> wordPool
 
-
         try(Scanner scin = new Scanner(dictionary)){
 
             scin.useDelimiter("[^A-Za-z]+");
@@ -64,19 +78,122 @@ public class EvilHangmanGame implements IEvilHangmanGame {
         } catch(FileNotFoundException ex){
             System.out.println(ex.getMessage());
             EvilHangmanGame.printUsage();
+            return;
         }
 
+
+        //  Main game loop
+        Scanner scin = new Scanner(System.in);
+        String guess;
+        while(this.turnsLeft > 0){
+            this.printPrompt();
+            guess = scin.next();
+
+            //  Parse guess and update pool
+            try{
+
+                //  Must be one character long.
+                if(guess.length() != 1) throw new InvalidGuessException("Invalid guess: (must be one letter)");
+
+                //  Must be alphabetic character
+                guess = guess.replace("[^A-Za-z]","");
+                if(guess.isEmpty()) throw new InvalidGuessException("Invalid guess: (must be a letter)");
+
+                //  Make everything lowercase
+                guess = guess.toLowerCase();
+
+                //  makeGuess (throws GuessAlreadyMadeException
+                wordPool = makeGuess(guess.charAt(0));
+
+            } catch(InvalidGuessException ex){
+                System.out.println();
+                System.out.println(ex.getMessage());
+                continue;
+
+            } catch(GuessAlreadyMadeException ex){
+                System.out.println();
+                System.out.println("You already used that letter.");
+                continue;
+
+            }
+
+        }
+
+    }
+
+    public static String getWordPattern(String word, String letter){
+        return word.replace("[^"+letter+"]","-");
     }
 
 
     @Override
     public Set<String> makeGuess(char guess) throws GuessAlreadyMadeException {
-        if (guesses.contains(guess)) throw new GuessAlreadyMadeException();
-        return null;
+        String sGuess = Character.toString(guess);
+
+        if (guesses.contains(sGuess)) throw new GuessAlreadyMadeException();
+
+        //  Construct the map
+        Map<String,Set<String>> patternMap = new HashMap<>();
+
+        for (String word : wordPool){
+            //  FOR EACH WORD:
+            //  Find the pattern
+            String pattern = EvilHangmanGame.getWordPattern(word,sGuess);
+
+
+            //  Find its corresponding wordSet in patternMap
+            Set<String> wordSet;
+            if(!patternMap.containsKey(pattern)){
+                wordSet = new TreeSet<>();
+                patternMap.put(pattern,wordSet);
+            } else {
+                wordSet = patternMap.get(pattern);
+            }
+            //  Add word to wordSet
+            wordSet.add(word);
+        }
+
+        //  Choose the next wordPool according to the evil algorithm
+
+        List<String> patterns = new ArrayList(patternMap.keySet());
+
+        //  Sort patterns by evil algorithm preference
+        patterns.sort(EvilHangmanGame.evilPatternComparator);
+
+        String winningPattern ="";
+        int winningSize = 0;
+
+        //  Iterate through map by sorted patterns.
+        //  We now only need to pick the biggest list
+        for(String pattern : patterns){
+            if(patternMap.get(pattern).size() > winningSize){
+                winningPattern = pattern;
+                winningSize = patternMap.get(winningPattern).size();
+            }
+        }
+
+        //  Output the result depending on the winning pattern.
+        if (winningPattern.matches("-+")){
+            //  No letters
+            System.out.println("Sorry, there are no "+guess+"'s");
+        } else {
+            int numLetters = winningPattern.replace("-","").length();
+            System.out.println("Yes, there is "+numLetters+" "+guess);
+        }
+
+        return patternMap.get(winningPattern);
+
     }
 
-    public static class InvalidCommandLineArgument extends Exception{
-        public InvalidCommandLineArgument(String s){
+
+    public static class InvalidCommandLineArgumentException extends Exception{
+        public InvalidCommandLineArgumentException(String s){
+            super(s);
+        }
+    }
+
+    public static class InvalidGuessException extends Exception{
+        public InvalidGuessException(String s){
             super(s);
         }
     }
@@ -94,13 +211,13 @@ public class EvilHangmanGame implements IEvilHangmanGame {
 
         try{
             //  Need all three arguments
-            if(args.length != 3) throw new InvalidCommandLineArgument("Invalid command line arguments.");
+            if(args.length != 3) throw new InvalidCommandLineArgumentException("Invalid command line arguments.");
 
             //  Word length: int >= 2
-            if(Integer.parseInt(args[1]) < 2) throw new InvalidCommandLineArgument("Word length must be an int >= 2");
+            if(Integer.parseInt(args[1]) < 2) throw new InvalidCommandLineArgumentException("Word length must be an int >= 2");
 
             //  Number of guesses: int >= 1
-            if(Integer.parseInt(args[2]) < 1) throw new InvalidCommandLineArgument("Word length must be an int >= 1");
+            if(Integer.parseInt(args[2]) < 1) throw new InvalidCommandLineArgumentException("Word length must be an int >= 1");
 
             //  Dictionary not empty
             dictionary = new File(args[0]);
@@ -114,7 +231,7 @@ public class EvilHangmanGame implements IEvilHangmanGame {
             EvilHangmanGame.printUsage();
             return;
 
-        } catch( InvalidCommandLineArgument | EmptyDictionaryException ex){
+        } catch( InvalidCommandLineArgumentException | EmptyDictionaryException ex){
             System.out.println(ex.getMessage());
             EvilHangmanGame.printUsage();
             return;
@@ -124,8 +241,5 @@ public class EvilHangmanGame implements IEvilHangmanGame {
 
         game.startGame(dictionary,Integer.parseInt(args[1]));
 
-        IEvilHangmanGame game = new EvilHangmanGame();
-
-        game.startGame(args[0],args[1]);
     }
 }

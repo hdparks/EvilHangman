@@ -7,7 +7,7 @@ public interface IEvilHangmanGame {
 
 	public static class GuessAlreadyMadeException extends Exception {
 	}
-	
+
 	/**
 	 * Starts a new game of evil hangman using words from <code>dictionary</code>
 	 * with length <code>wordLength</code>.
