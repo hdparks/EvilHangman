@@ -12,6 +12,8 @@ public class EvilHangmanGame implements IEvilHangmanGame {
 
     public int turnsLeft = 0;
 
+    public String currentPattern = "";
+
     public static Comparator<String> evilPatternComparator =  new Comparator<String>() {
 
         @Override
@@ -24,7 +26,7 @@ public class EvilHangmanGame implements IEvilHangmanGame {
 
             //  If: same number of letters
             //  Then: rightmost guessed letter wins
-            for(int i = o1.length(); i > 0; i--){
+            for(int i = o1.length() - 1; i > 0; i--){
                 if(o1.charAt(i)==o2.charAt(i)) continue;
                 if(o1.charAt(i)=='-') return 1;
                 else return -1;
@@ -32,7 +34,7 @@ public class EvilHangmanGame implements IEvilHangmanGame {
             //  If identical, they compare equally
             return 0;
         }
-    });
+    };
 
 
     public static void printUsage(){
@@ -62,83 +64,108 @@ public class EvilHangmanGame implements IEvilHangmanGame {
     @Override
     public void startGame(File dictionary, int wordLength) {
 
+        this.currentPattern = "-".repeat(wordLength);
         //  Read in dictionary file of words of length wordLength to Set<String> wordPool
 
-        try(Scanner scin = new Scanner(dictionary)){
+        try (Scanner scin = new Scanner(dictionary)) {
 
             scin.useDelimiter("[^A-Za-z]+");
 
-            while(scin.hasNext()){
+            while (scin.hasNext()) {
                 String nextWord = scin.next().toLowerCase();
-                if (nextWord.length() == wordLength){
+                if (nextWord.length() == wordLength) {
                     wordPool.add(nextWord);
                 }
             }
 
-        } catch(FileNotFoundException ex){
+        } catch (FileNotFoundException ex) {
             System.out.println(ex.getMessage());
             EvilHangmanGame.printUsage();
             return;
         }
+    }
+
+    public void applyGuess(String guess){
+
+        try{
+            //  Must be one character long.
+            if(guess.length() != 1) throw new InvalidGuessException("Invalid guess: (must be one letter)");
+
+            //  Must be alphabetic character
+            guess = guess.replaceAll("[^A-Za-z]","");
+            if(guess.isEmpty()) throw new InvalidGuessException("Invalid guess: (must be a letter)");
+
+            //  Make everything lowercase
+            guess = guess.toLowerCase();
+            //  makeGuess (throws GuessAlreadyMadeException
+            wordPool = makeGuess(guess.charAt(0));
+
+        } catch(InvalidGuessException ex){
+            System.out.println();
+            System.out.println(ex.getMessage());
+
+        } catch(GuessAlreadyMadeException ex){
+            System.out.println();
+            System.out.println("You already used that letter.");
+        }
+
+    }
+
+    public void playGame(int numberOfTurns){
+        this.turnsLeft = numberOfTurns;
+        String correctWord = "";
+        boolean winCondition = false;
 
 
         //  Main game loop
         Scanner scin = new Scanner(System.in);
         String guess;
-        while(this.turnsLeft > 0){
+
+
+        while(this.turnsLeft > 0 && !winCondition){
             this.printPrompt();
             guess = scin.next();
 
-            //  Parse guess and update pool
-            try{
+            //  Parses guess and updates pool
+            applyGuess(guess);
 
-                //  Must be one character long.
-                if(guess.length() != 1) throw new InvalidGuessException("Invalid guess: (must be one letter)");
-
-                //  Must be alphabetic character
-                guess = guess.replace("[^A-Za-z]","");
-                if(guess.isEmpty()) throw new InvalidGuessException("Invalid guess: (must be a letter)");
-
-                //  Make everything lowercase
-                guess = guess.toLowerCase();
-
-                //  makeGuess (throws GuessAlreadyMadeException
-                wordPool = makeGuess(guess.charAt(0));
-
-            } catch(InvalidGuessException ex){
-                System.out.println();
-                System.out.println(ex.getMessage());
-                continue;
-
-            } catch(GuessAlreadyMadeException ex){
-                System.out.println();
-                System.out.println("You already used that letter.");
-                continue;
-
+            if(this.wordPool.size() <= 1){
+                for(String w:this.wordPool){
+                    if(this.currentPattern.equals(w)){
+                        correctWord = w;
+                        winCondition = true;
+                    }
+                    break;
+                }
             }
-
         }
 
+        if(winCondition){
+            System.out.println("Congratulations, you win!");
+        } else {
+            System.out.println("You lose!");
+            //  Pick random word from wordPool
+            for (String word : this.wordPool){
+                correctWord = word;
+                break;
+            }
+        }
+
+        System.out.println("The word was "+ correctWord);
     }
 
     public static String getWordPattern(String word, String letter){
-        return word.replace("[^"+letter+"]","-");
+        return word.replaceAll("[^"+letter+"]","-");
     }
 
+    public Map<String,Set<String>> getPatternMap(String guess){
 
-    @Override
-    public Set<String> makeGuess(char guess) throws GuessAlreadyMadeException {
-        String sGuess = Character.toString(guess);
-
-        if (guesses.contains(sGuess)) throw new GuessAlreadyMadeException();
-
-        //  Construct the map
         Map<String,Set<String>> patternMap = new HashMap<>();
 
         for (String word : wordPool){
             //  FOR EACH WORD:
             //  Find the pattern
-            String pattern = EvilHangmanGame.getWordPattern(word,sGuess);
+            String pattern = EvilHangmanGame.getWordPattern(word,guess);
 
 
             //  Find its corresponding wordSet in patternMap
@@ -152,10 +179,23 @@ public class EvilHangmanGame implements IEvilHangmanGame {
             //  Add word to wordSet
             wordSet.add(word);
         }
+        return patternMap;
+    }
+
+
+    @Override
+    public Set<String> makeGuess(char guess) throws GuessAlreadyMadeException {
+        String sGuess = Character.toString(guess);
+
+        if (this.guesses.contains(sGuess)) throw new GuessAlreadyMadeException();
+
+        this.guesses.add(sGuess);
+
+        //  Construct the map
+        Map<String,Set<String>> patternMap = this.getPatternMap(sGuess);
 
         //  Choose the next wordPool according to the evil algorithm
-
-        List<String> patterns = new ArrayList(patternMap.keySet());
+        List<String> patterns = new ArrayList<String>(patternMap.keySet());
 
         //  Sort patterns by evil algorithm preference
         patterns.sort(EvilHangmanGame.evilPatternComparator);
@@ -176,10 +216,22 @@ public class EvilHangmanGame implements IEvilHangmanGame {
         if (winningPattern.matches("-+")){
             //  No letters
             System.out.println("Sorry, there are no "+guess+"'s");
+            this.turnsLeft -= 1;
         } else {
             int numLetters = winningPattern.replace("-","").length();
             System.out.println("Yes, there is "+numLetters+" "+guess);
+
+            //  Update current pattern
+            StringBuilder newPattern = new StringBuilder();
+            for (int i = 0; i < currentPattern.length(); i++){
+                if(currentPattern.charAt(i) != '-') newPattern.append(currentPattern.charAt(i));
+                else if(winningPattern.charAt(i) != '-') newPattern.append(winningPattern.charAt(i));
+                else newPattern.append("-");
+            }
+            this.currentPattern = newPattern.toString();
         }
+
+        System.out.println();
 
         return patternMap.get(winningPattern);
 
@@ -206,8 +258,9 @@ public class EvilHangmanGame implements IEvilHangmanGame {
 
     public static void main(String[] args){
         //  Ensure we have valid dictionary, length, guesses.
+
         File dictionary;
-        IEvilHangmanGame game = new EvilHangmanGame();
+        EvilHangmanGame game = new EvilHangmanGame();
 
         try{
             //  Need all three arguments
@@ -222,7 +275,9 @@ public class EvilHangmanGame implements IEvilHangmanGame {
             //  Dictionary not empty
             dictionary = new File(args[0]);
 
-            if(dictionary.length() == 0) throw new EmptyDictionaryException("The provided dictionary file is empty.");
+            if(dictionary.length() == 0){
+                throw new EmptyDictionaryException("The provided dictionary file is empty.");
+            }
 
 
         } catch(NumberFormatException ex){
@@ -238,8 +293,7 @@ public class EvilHangmanGame implements IEvilHangmanGame {
         }
 
         //  If we have everything we need, we start the game:
-
         game.startGame(dictionary,Integer.parseInt(args[1]));
-
+        game.playGame(Integer.parseInt(args[2]));
     }
 }
