@@ -69,16 +69,21 @@ public class EvilHangmanGame implements IEvilHangmanGame {
 
         try (Scanner scin = new Scanner(dictionary)) {
 
-            scin.useDelimiter("[^A-Za-z]+");
-
             while (scin.hasNext()) {
-                String nextWord = scin.next().toLowerCase();
+                String nextWord = scin.next();
+
                 if (nextWord.length() == wordLength) {
+                    if(!nextWord.matches("[A-Za-z]+")){
+                        continue;
+                    }
+                    nextWord = nextWord.toLowerCase();
                     wordPool.add(nextWord);
                 }
             }
 
+
         } catch (FileNotFoundException ex) {
+            //  This should be caught earlier on.
             System.out.println(ex.getMessage());
             EvilHangmanGame.printUsage();
             return;
@@ -280,6 +285,13 @@ public class EvilHangmanGame implements IEvilHangmanGame {
             }
 
 
+            //  If we have everything we need, we start the game:
+            game.startGame(dictionary,Integer.parseInt(args[1]));
+
+            if(game.wordPool.size() == 0) throw new EmptyDictionaryException("Dictionary had no valid words of length "+args[1]);
+
+            game.playGame(Integer.parseInt(args[2]));
+
         } catch(NumberFormatException ex){
             System.out.println(ex.getMessage());
             System.out.println("'wordLength' and 'guesses' must be integers");
@@ -291,9 +303,5 @@ public class EvilHangmanGame implements IEvilHangmanGame {
             EvilHangmanGame.printUsage();
             return;
         }
-
-        //  If we have everything we need, we start the game:
-        game.startGame(dictionary,Integer.parseInt(args[1]));
-        game.playGame(Integer.parseInt(args[2]));
     }
 }
