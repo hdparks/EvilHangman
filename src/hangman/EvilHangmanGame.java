@@ -164,6 +164,9 @@ public class EvilHangmanGame implements IEvilHangmanGame {
         }
         this.currentPattern = newPattern.toString();
 
+        //  Update game.wordPool internally
+        this.wordPool = patternMap.get(winningPattern);
+
         return patternMap.get(winningPattern);
 
     }
@@ -245,7 +248,7 @@ public class EvilHangmanGame implements IEvilHangmanGame {
                     guess = guess.toLowerCase();
                     
                     //  makeGuess (throws GuessAlreadyMadeException)
-                    game.wordPool = game.makeGuess(guess.charAt(0));
+                    game.makeGuess(guess.charAt(0));
                     
                     //	Check guess
                     if(game.currentPattern.contains(guess)) {
@@ -303,13 +306,6 @@ public class EvilHangmanGame implements IEvilHangmanGame {
         	System.out.println(ex.getMessage());
             EvilHangmanGame.printUsage();
             return;
-        }
-
-        System.out.println(game.wordPool);
-        try {
-            System.out.println(game.makeGuess('l'));
-        } catch (GuessAlreadyMadeException e) {
-            e.printStackTrace();
         }
 
     }
